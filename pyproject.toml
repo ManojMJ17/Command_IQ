@@ -1,0 +1,17 @@
+[project]
+name = "ciq"
+version = "0.1.0"
+description = "Offline NL-to-Linux Command Translator"
+authors = [{name = "Your Name"}]
+dependencies = [
+    "torch",
+    "transformers",
+    "click"
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+ciq = "cli.main:main"
