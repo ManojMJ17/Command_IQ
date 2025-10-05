@@ -1,182 +1,137 @@
-# 🧠 Command IQ (CIQ)
+# Command IQ (CIQ) — Natural Language to Linux Commands
 
-**Command IQ** is an AI-powered Linux command helper that converts natural language queries into accurate Linux commands.  
-It works offline using a local FAISS index + T5 model, or online via cloud/local AI integration.
-
-With CIQ, you can type:
-
-```bash
-ciq "install VLC"
-ciq "check disk usage"
-ciq "list all files"
-````
-
-…and get the exact Linux command to execute.
+Command IQ (CIQ) is an AI-powered tool that converts natural language instructions into accurate Linux commands. It comes with a prebuilt FAISS index and a T5 model for instant command prediction, so you don’t have to train anything manually.
 
 ---
 
 ## ⚡ Features
 
-* Converts natural language queries to Linux commands
-* Offline execution with **FAISS + T5** models
-* Works globally via `ciq` CLI command
-* Safe, idempotent installation — can re-run anytime
-* No manual environment setup needed
+- Convert English instructions into working Linux commands
+- Works offline with prebuilt FAISS and T5 model assets
+- Supports major Linux distributions and WSL
+- Cross-directory CLI: run `ciq "<your query>"` from anywhere
+- Automatic environment setup via a single installer script
 
 ---
 
-## 📦 Installation (Linux / WSL / Kali)
+## 🚀 Quick Installation
 
-**Step 1: Clone or download the repository**
+1. **Clone the repository** (optional if you’re downloading directly from GitHub):
 
 ```bash
 git clone https://github.com/ManojMJ17/Command_IQ.git
 cd Command_IQ
 ```
 
-**Step 2: Make installer executable and run it**
+````
+
+2. **Install Python 3.11** (if not already installed):
+
+```bash
+sudo apt update
+sudo apt install python3.11 python3.11-venv python3.11-distutils python3.11-dev -y
+```
+
+3. **Run the installer script**:
 
 ```bash
 chmod +x install_ciq.sh
 ./install_ciq.sh
 ```
 
-> This installer will:
+> The installer will:
 >
-> * Create a Python virtual environment
-> * Install all dependencies
-> * Download and extract FAISS + T5 model assets
-> * Ensure correct file structure
-> * Create the global `ciq` command
+> - Create a virtual environment using Python 3.11
+> - Install all required Python dependencies
+> - Download and extract FAISS index and T5 model
+> - Fix filenames and directory structure
+> - Create a global `ciq` command accessible from any directory
 
-**Step 3: Add CIQ to your PATH (if needed)**
-
-```bash
-echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
-source ~/.bashrc
-```
-
----
-
-## 🏃 Using CIQ
-
-Run CIQ from **any directory**:
-
-```bash
-ciq "check disk usage"
-ciq "install vlc"
-ciq "list all files"
-```
-
-Expected output example:
-
-```
-Query         : check disk usage
-Final Suggest : df -h
-Executing command...
-
-Filesystem      Size  Used Avail Use% Mounted on
-/dev/sda1        50G   20G   28G  42% /
-```
-
----
-
-## 🔄 Reinstall / Update
-
-CIQ is fully **idempotent**.
-If you need to update or fix something:
-
-```bash
-./install_ciq.sh
-```
-
-No manual cleanup is needed.
-
----
-
-## 🔧 Post-install Verification
-
-Make sure everything is installed correctly:
-
-```bash
-# Check CLI package layout
-ls -la ~/.ciq/src/cli
-# Should see: __init__.py  main.py  predict.py ...
-
-# Check T5 model file
-ls ~/.ciq/src/model/saved_model/t5_base_resumed.pt
-
-# Check FAISS index
-ls ~/.ciq/src/faiss_index/
-```
-
-Then try:
+4. **Verify installation**:
 
 ```bash
 ciq "check disk usage"
 ```
 
+Expected output should show your current directory and a suggested Linux command.
+
 ---
 
-## ⚙️ Advanced Options
+## 🖥️ Usage
 
-* Use local AI models (T5 + FAISS) — offline
-* Cloud AI mode (DeepInfra / OpenRouter) — optional
-* Auto-run suggested commands or get explanations
-* Configuration stored under:
-
-```
-~/.ciq/
+```bash
+ciq "<natural language query>"
 ```
 
+**Examples:**
+
+```bash
+ciq "install VLC media player"
+ciq "list all files recursively"
+ciq "show current disk usage"
+```
+
+The CLI will display:
+
+- The interpreted Linux command
+- Optionally execute it if enabled in the future updates
+
 ---
 
-## 🛠 Requirements
+## ⚙️ Notes
 
-* Python 3.8+
-* pip
-* Linux / WSL / Kali compatible
-
-Installer handles all dependencies automatically.
-
----
-
-## 💡 Troubleshooting
-
-* **Command not found** → Make sure `~/.local/bin` is in PATH.
-* **Virtualenv missing** → Re-run installer.
-* **Assets missing** → Ensure `curl` and `unzip` are installed:
+- Make sure Python 3.11 is installed. Older versions may cause dependency issues (especially with PyTorch and TorchVision).
+- If running in WSL or Linux, ensure you have `curl` and `unzip` installed:
 
 ```bash
 sudo apt install curl unzip -y
 ```
 
-* **Module import errors** → Fixed by installer copying `src/cli` correctly and running `python -m cli.main`.
+- The installer is **idempotent**: safe to re-run anytime without breaking existing setup.
 
 ---
 
-## 📁 File Structure After Installation
+## 📂 Directory Structure after Installation
 
 ```
 ~/.ciq/
-├─ src/                  # CIQ source code
-│  └─ cli/               # Python package
-├─ model/saved_model/    # T5 model
-├─ faiss_index/          # FAISS index
-├─ venv/                 # Python virtual environment
-└─ ciq                   # Global CLI wrapper
+├─ src/
+│  ├─ cli/
+│  │  ├─ __init__.py
+│  │  ├─ main.py
+│  │  └─ predict.py
+│  ├─ model/saved_model/t5_base_resumed.pt
+│  └─ faiss_index/...
+├─ venv/
+└─ bin/
+   └─ ciq  (global CLI wrapper)
 ```
 
 ---
 
-## 📖 Contributing
+## 💡 Troubleshooting
 
-Contributions welcome! Fork, modify, and submit pull requests.
+- **Python not found:** Make sure `python3.11` is installed and accessible.
+- **Dependency errors:** Run the installer again; it upgrades pip and installs all requirements.
+- **CLI not working:** Ensure `~/.local/bin` is in your PATH:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
 
 ---
 
-## ⚖️ License
+## 📜 License
 
-MIT License – see [LICENSE](LICENSE) for details.
+MIT License — see `LICENSE` file.
+
+---
+
+## 🧠 Author
+
+Manoj Kumar
+GitHub: [https://github.com/ManojMJ17](https://github.com/ManojMJ17)
 
 ```
+
+````
