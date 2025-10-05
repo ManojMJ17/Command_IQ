@@ -51,14 +51,12 @@ def main(query, help):
     faiss_cmd = faiss_cmds[0] if faiss_cmds else ""
     t5_cmd = predictor.t5_predict(query)
     final_cmd = predictor.predict(query)
-    explanation = predictor.explain(final_cmd)
 
     click.echo("\n=====================================")
     click.echo(f"Query         : {query}")
     click.echo(f"FAISS Suggest : {faiss_cmd}")
     click.echo(f"T5 Suggest    : {t5_cmd}")
     click.echo(f"Final Suggest : {final_cmd}")
-    click.echo(f"Explanation   : {explanation}")
     click.echo("=====================================")
 
     choice = input("\nRun this command? [y/n]: ").strip().lower()

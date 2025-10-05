@@ -207,19 +207,4 @@ class CommandPredictor:
             print(f"Failed to execute command: {e}")
 
 
-    def explain(self, cmd: str) -> str:
-        # Very simple placeholder explanations
-        if cmd.startswith("ls"):
-            return "List files in directory"
-        elif cmd.startswith("df"):
-            return "Show disk space usage"
-        elif cmd.startswith("ps"):
-            return "Display running processes"
-        elif cmd.startswith("top"):
-            return "Show real-time system usage"
-        elif cmd.startswith("cat"):
-            return "Display file contents"
-        elif cmd.startswith("grep"):
-            return "Search text patterns"
-        else:
-            return "No explanation available yet."
+    

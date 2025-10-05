@@ -23,14 +23,14 @@ git clone https://github.com/ManojMJ17/Command_IQ.git
 cd Command_IQ
 ```
 
-````
-
 2. **Install Python 3.11** (if not already installed):
 
 ```bash
 sudo apt update
 sudo apt install python3.11 python3.11-venv python3.11-distutils python3.11-dev -y
 ```
+
+> Make sure Python 3.11 **or higher** is installed. The installer will use Python 3.11 in a virtual environment to ensure compatibility with all dependencies.
 
 3. **Run the installer script**:
 
@@ -39,13 +39,15 @@ chmod +x install_ciq.sh
 ./install_ciq.sh
 ```
 
-> The installer will:
->
-> - Create a virtual environment using Python 3.11
-> - Install all required Python dependencies
-> - Download and extract FAISS index and T5 model
-> - Fix filenames and directory structure
-> - Create a global `ciq` command accessible from any directory
+The installer will:
+
+- Create a virtual environment using Python 3.11
+- Install all required Python dependencies (excluding PyTorch, which is installed separately)
+- Download and extract FAISS index and T5 model
+- Fix filenames and directory structure
+- Create a global `ciq` command accessible from any directory
+
+> ⚠️ The installer is **idempotent** — safe to re-run anytime. Existing virtual environments, FAISS indexes, and T5 models will be skipped.
 
 4. **Verify installation**:
 
@@ -53,7 +55,12 @@ chmod +x install_ciq.sh
 ciq "check disk usage"
 ```
 
-Expected output should show your current directory and a suggested Linux command.
+Example output:
+
+```text
+Disk usage for /home/user:
+df -h
+```
 
 ---
 
@@ -74,20 +81,24 @@ ciq "show current disk usage"
 The CLI will display:
 
 - The interpreted Linux command
-- Optionally execute it if enabled in the future updates
+- Optionally execute it if enabled in future updates
 
 ---
 
 ## ⚙️ Notes
 
-- Make sure Python 3.11 is installed. Older versions may cause dependency issues (especially with PyTorch and TorchVision).
-- If running in WSL or Linux, ensure you have `curl` and `unzip` installed:
+- Ensure Python 3.11 or higher is installed. Older versions may cause dependency issues (especially with PyTorch and TorchVision).
+- On Linux/WSL, ensure `curl` and `unzip` are installed:
 
 ```bash
 sudo apt install curl unzip -y
 ```
 
-- The installer is **idempotent**: safe to re-run anytime without breaking existing setup.
+- If the CLI is not recognized, ensure `~/.local/bin` is in your PATH:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
 
 ---
 
@@ -100,8 +111,12 @@ sudo apt install curl unzip -y
 │  │  ├─ __init__.py
 │  │  ├─ main.py
 │  │  └─ predict.py
-│  ├─ model/saved_model/t5_base_resumed.pt
-│  └─ faiss_index/...
+│  ├─ model/
+│  │  ├─ saved_model/t5_base_resumed.pt
+│  │  ├─ t5_base_arch/
+│  │  └─ t5_base_tokenizer/
+│  └─ faiss_index/
+│     └─ faiss_index_combined.index
 ├─ venv/
 └─ bin/
    └─ ciq  (global CLI wrapper)
@@ -111,19 +126,15 @@ sudo apt install curl unzip -y
 
 ## 💡 Troubleshooting
 
-- **Python not found:** Make sure `python3.11` is installed and accessible.
-- **Dependency errors:** Run the installer again; it upgrades pip and installs all requirements.
-- **CLI not working:** Ensure `~/.local/bin` is in your PATH:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
+- **Python not found:** Make sure Python 3.11+ is installed and accessible
+- **Dependency errors:** Re-run the installer; it upgrades pip and installs all requirements
+- **CLI not working:** Ensure `~/.local/bin` is in your PATH
 
 ---
 
 ## 📜 License
 
-MIT License — see `LICENSE` file.
+MIT License — see `LICENSE` file
 
 ---
 
@@ -132,6 +143,4 @@ MIT License — see `LICENSE` file.
 Manoj Kumar
 GitHub: [https://github.com/ManojMJ17](https://github.com/ManojMJ17)
 
-```
-
-````
+---

@@ -1,3 +1,5 @@
+dev_requirements.txt
+
 # Python artifacts
 __pycache__/
 *.pyc
@@ -49,7 +51,8 @@ package-lock.json
 .env
 
 # Documentation (optional)
-*.md
+outputs.md
+todo.md
 
 # Other OS artifacts
 .DS_Store
@@ -71,3 +74,74 @@ src/model/t5_base_arch/
 src/model/t5_base_tokenizer/
 src/model/backups/
 src/model/t5_small_16/
+
+
+
+
+
+# <!------------------------------------------------- DEV Git hub PUSH --------------------------------->
+
+# # Python artifacts
+
+# **pycache**/
+# _.pyc
+# _.pyo
+# \*.pyd
+
+# # Virtual environments
+
+# venv/
+
+# # Local pip install artifacts
+
+# \*.egg-info/
+# dist/
+# build/
+
+# # FAISS / model backups not needed for pipx
+
+# src/faiss_index/backups/
+# src/model/backups/
+# src/model/t5_small_16/
+
+# # Development / data files not needed for pipx
+
+# data/backups
+
+# # Node / JS artifacts
+
+# node_modules/
+# package.json
+# package-lock.json
+
+# # Local environment
+
+# .env
+
+# # Documentation (optional)
+
+# \*.md
+
+# # Other OS artifacts
+
+# .DS_Store
+# Thumbs.db
+
+# # Logs
+
+# \*.log
+
+# # FAISS
+
+# src/faiss_index/faiss_index_combined.index
+# src/faiss_index/faiss_metadata_combined.pkl
+# src/faiss_index/models/
+# src/faiss_index/backups/
+
+# # T5 Model
+
+# src/model/saved_model/
+# src/model/t5_base_arch/
+# src/model/t5_base_tokenizer/
+# src/model/backups/
+# src/model/t5_small_16/
