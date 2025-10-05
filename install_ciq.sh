@@ -116,12 +116,12 @@
 # fi
 
 
+
 #!/usr/bin/env bash
 set -euo pipefail
 
 # ============================================
 # 🧠 CIQ Installer Script (Linux / Kali / WSL)
-# Auto-handles Python 3.11 venv for PyTorch
 # ============================================
 
 REPO_URL="https://github.com/ManojMJ17/Command_IQ.git"
@@ -140,42 +140,35 @@ echo "==========================================="
 echo "🧩 Installing Command IQ (CIQ)"
 echo "==========================================="
 
-# 1️⃣ Check system for Python 3.11
+# 1️⃣ Find Python 3.11
 PYTHON_BIN=""
-
 if command -v python3.11 &>/dev/null; then
     PYTHON_BIN="python3.11"
 elif command -v python3 &>/dev/null; then
-    PYTHON_VER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-    if [[ "$PYTHON_VER" < "3.8" ]]; then
-        echo "❌ Python >= 3.8 is required."
-        exit 1
-    elif [[ "$PYTHON_VER" > "3.11" ]]; then
-        echo "⚠️  Your system Python ($PYTHON_VER) may be incompatible with PyTorch. Installing Python 3.11 venv."
-        if ! command -v python3.11 &>/dev/null; then
-            sudo apt update && sudo apt install -y python3.11 python3.11-venv python3.11-distutils python3.11-dev
-        fi
-        PYTHON_BIN="python3.11"
-    else
+    VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+    if [[ "$VERSION" == "3.11" ]]; then
         PYTHON_BIN="python3"
     fi
-else
-    echo "❌ Python3 not found. Please install Python 3.8–3.11 first."
+fi
+
+if [ -z "$PYTHON_BIN" ]; then
+    echo "❌ Python 3.11 is required but not found."
+    echo "Install it via: sudo apt install python3.11 python3.11-venv python3.11-distutils python3.11-dev"
     exit 1
 fi
 
 echo "🐍 Using Python: $($PYTHON_BIN --version)"
 
-# 2️⃣ Ensure pip exists
-if ! $PYTHON_BIN -m pip --version &>/dev/null; then
-    echo "📦 Installing pip..."
-    curl -sS https://bootstrap.pypa.io/get-pip.py | $PYTHON_BIN
+# 2️⃣ Check pip
+if ! command -v pip &>/dev/null; then
+    echo "❌ pip is required. Install via: sudo apt install python3-pip"
+    exit 1
 fi
 
 # 3️⃣ Prepare folders
 mkdir -p "$CIQ_HOME" "$PROJECT_SRC" "$BIN_PATH"
 
-# 4️⃣ Clone or use local repo
+# 4️⃣ Use local repo if exists, otherwise clone
 if [ -d "$LOCAL_REPO" ]; then
     SRC_REPO="$LOCAL_REPO"
     echo "📦 Using local repository at $SRC_REPO"
@@ -187,7 +180,7 @@ else
     fi
 fi
 
-# 5️⃣ Copy project source (avoid nested cli)
+# 5️⃣ Copy project source (avoid nested cli/cli)
 echo "📂 Copying project source..."
 if command -v rsync &>/dev/null; then
     rsync -a --delete "$SRC_REPO/src/" "$PROJECT_SRC/"
@@ -196,9 +189,9 @@ else
     cp -r "$SRC_REPO/src/"* "$PROJECT_SRC/"
 fi
 
-# 6️⃣ Create Python 3.11 venv
+# 6️⃣ Create or update virtual environment
 if [ ! -d "$VENV_PATH" ]; then
-    echo "🐍 Creating Python 3.11 virtual environment..."
+    echo "🐍 Creating virtual environment..."
     $PYTHON_BIN -m venv "$VENV_PATH"
 fi
 
@@ -213,15 +206,15 @@ else
     echo "⚠️  No requirements.txt found — skipping dependency install."
 fi
 
-# 8️⃣ Download FAISS + T5 model assets
+# 8️⃣ Download FAISS + T5 model assets (idempotent)
 echo "⬇️  Downloading FAISS assets..."
 curl -L -o "$PROJECT_SRC/ciq_assets_faiss.zip" "$FAISS_ZIP_URL"
 
 echo "⬇️  Downloading T5 model assets..."
 curl -L -o "$PROJECT_SRC/ciq_assets_t5.zip" "$T5_ZIP_URL"
 
-# 9️⃣ Extract assets
-echo "📦 Extracting FAISS index..."
+# 9️⃣ Extract archives
+echo "📦 Extracting FAISS assets..."
 unzip -o "$PROJECT_SRC/ciq_assets_faiss.zip" -d "$PROJECT_SRC" >/dev/null
 rm -f "$PROJECT_SRC/ciq_assets_faiss.zip"
 
@@ -229,12 +222,12 @@ echo "📦 Extracting T5 model..."
 unzip -o "$PROJECT_SRC/ciq_assets_t5.zip" -d "$PROJECT_SRC" >/dev/null
 rm -f "$PROJECT_SRC/ciq_assets_t5.zip"
 
-# Rename T5 model
+# 1️⃣0️⃣ Ensure correct T5 model filename
 if [ -f "$PROJECT_SRC/model/saved_model/t5_base_model.pt" ] && [ ! -f "$PROJECT_SRC/model/saved_model/t5_base_resumed.pt" ]; then
     mv "$PROJECT_SRC/model/saved_model/t5_base_model.pt" "$PROJECT_SRC/model/saved_model/t5_base_resumed.pt"
 fi
 
-# 10️⃣ Create universal CLI wrapper
+# 1️⃣1️⃣ Create global CLI wrapper
 echo "⚙️  Creating global CIQ command..."
 cat > "$WRAPPER" <<'EOL'
 #!/usr/bin/env bash
@@ -250,17 +243,19 @@ if [ ! -f "$VENV/bin/activate" ]; then
 fi
 
 source "$VENV/bin/activate"
-PYTHONPATH="$PROJECT_SRC" python -m cli.main "$@"
-deactivate
+cd "$PROJECT_SRC"
+exec python -m cli.main "$@"
 EOL
 
 chmod +x "$WRAPPER"
 
-# 11️⃣ Final verification
+# 1️⃣2️⃣ Final verification
 if [ -f "$PROJECT_SRC/model/saved_model/t5_base_resumed.pt" ] && [ -f "$WRAPPER" ]; then
     echo "✅ CIQ installation completed successfully!"
     echo "👉 You can now use it globally:"
+    echo ""
     echo "   ciq \"install vlc\""
+    echo ""
 else
     echo "❌ Installation incomplete. Please check logs above."
 fi
