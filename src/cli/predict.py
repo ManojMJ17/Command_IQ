@@ -79,7 +79,7 @@ from collections import Counter
 # --------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 TOKENIZER_PATH = BASE_DIR / "model" / "t5_base_tokenizer"
-MODEL_PATH = BASE_DIR / "model" / "saved_model" / "t5_base_model.pt"
+MODEL_PATH = BASE_DIR / "model" / "saved_model" / "t5_base_resumed.pt"
 ARCH_PATH = BASE_DIR / "model" / "t5_base_arch"
 
 FAISS_INDEX_PATH = BASE_DIR / "faiss_index" / "faiss_index_combined.index"
