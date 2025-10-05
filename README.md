@@ -1,8 +1,9 @@
 # 🧠 Command IQ (CIQ)
 
-**Command IQ** is an AI-powered Linux command helper that converts natural language queries into accurate Linux commands. It works offline using a local FAISS index and T5 model, or online via cloud/local AI integration.
+**Command IQ** is an AI-powered Linux command helper that converts natural language queries into accurate Linux commands.  
+It works offline using a local FAISS index + T5 model, or online via cloud/local AI integration.
 
-With CIQ, you can type commands like:
+With CIQ, you can type:
 
 ```bash
 ciq "install VLC"
@@ -10,45 +11,45 @@ ciq "check disk usage"
 ciq "list all files"
 ````
 
-…and get the exact Linux command to run.
+…and get the exact Linux command to execute.
 
 ---
 
 ## ⚡ Features
 
-* Offline execution with prebuilt **FAISS index** + **T5 model**
 * Converts natural language queries to Linux commands
-* Supports **multiple Linux distributions** and WSL
-* Global CLI command: `ciq`
-* Safe, **idempotent installation**
-* No manual setup required
+* Offline execution with **FAISS + T5** models
+* Works globally via `ciq` CLI command
+* Safe, idempotent installation — can re-run anytime
+* No manual environment setup needed
 
 ---
 
 ## 📦 Installation (Linux / WSL / Kali)
 
-1. **Clone the repository (optional if using local CIQ repo)**
+**Step 1: Clone or download the repository**
 
 ```bash
 git clone https://github.com/ManojMJ17/Command_IQ.git
 cd Command_IQ
 ```
 
-2. **Download and run the installer**
+**Step 2: Make installer executable and run it**
 
 ```bash
 chmod +x install_ciq.sh
 ./install_ciq.sh
 ```
 
-> The installer will:
+> This installer will:
 >
 > * Create a Python virtual environment
-> * Install dependencies
-> * Download FAISS + T5 model assets
-> * Set up the global `ciq` command
+> * Install all dependencies
+> * Download and extract FAISS + T5 model assets
+> * Ensure correct file structure
+> * Create the global `ciq` command
 
-3. **Ensure `~/.local/bin` is in your PATH**
+**Step 3: Add CIQ to your PATH (if needed)**
 
 ```bash
 echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
@@ -62,42 +63,67 @@ source ~/.bashrc
 Run CIQ from **any directory**:
 
 ```bash
-ciq "install VLC"
 ciq "check disk usage"
+ciq "install vlc"
 ciq "list all files"
 ```
 
-Example output:
+Expected output example:
 
 ```
-Query         : check working directory
-Final Suggest : pwd
+Query         : check disk usage
+Final Suggest : df -h
 Executing command...
 
-/home/username
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        50G   20G   28G  42% /
 ```
 
 ---
 
 ## 🔄 Reinstall / Update
 
-CIQ is **idempotent**, so you can safely re-run the installer to update:
+CIQ is fully **idempotent**.
+If you need to update or fix something:
 
 ```bash
 ./install_ciq.sh
 ```
 
-No manual cleanup is required.
+No manual cleanup is needed.
+
+---
+
+## 🔧 Post-install Verification
+
+Make sure everything is installed correctly:
+
+```bash
+# Check CLI package layout
+ls -la ~/.ciq/src/cli
+# Should see: __init__.py  main.py  predict.py ...
+
+# Check T5 model file
+ls ~/.ciq/src/model/saved_model/t5_base_resumed.pt
+
+# Check FAISS index
+ls ~/.ciq/src/faiss_index/
+```
+
+Then try:
+
+```bash
+ciq "check disk usage"
+```
 
 ---
 
 ## ⚙️ Advanced Options
 
-* Use local AI models: `T5 + FAISS` (offline)
-* Add cloud AI API key (DeepInfra / OpenRouter) for online command generation
-* Auto-run suggested commands or explain them before running
-
-All configuration is stored under:
+* Use local AI models (T5 + FAISS) — offline
+* Cloud AI mode (DeepInfra / OpenRouter) — optional
+* Auto-run suggested commands or get explanations
+* Configuration stored under:
 
 ```
 ~/.ciq/
@@ -111,54 +137,41 @@ All configuration is stored under:
 * pip
 * Linux / WSL / Kali compatible
 
-The installer handles all Python dependencies automatically.
+Installer handles all dependencies automatically.
 
 ---
 
 ## 💡 Troubleshooting
 
-* **Command not found after installation?**
-  Ensure `~/.local/bin` is in your PATH:
-
-```bash
-echo 'export PATH=$HOME/.local/bin:$PATH' >> ~/.bashrc
-source ~/.bashrc
-```
-
-* **Virtual environment missing?**
-  Re-run the installer:
-
-```bash
-./install_ciq.sh
-```
-
-* **Assets not downloaded?**
-  Make sure `curl` and `unzip` are installed:
+* **Command not found** → Make sure `~/.local/bin` is in PATH.
+* **Virtualenv missing** → Re-run installer.
+* **Assets missing** → Ensure `curl` and `unzip` are installed:
 
 ```bash
 sudo apt install curl unzip -y
 ```
 
+* **Module import errors** → Fixed by installer copying `src/cli` correctly and running `python -m cli.main`.
+
 ---
 
-## 📁 File Structure
-
-After installation:
+## 📁 File Structure After Installation
 
 ```
 ~/.ciq/
 ├─ src/                  # CIQ source code
-├─ model/saved_model/     # T5 model
-├─ faiss_index/           # FAISS index
-├─ venv/                  # Python virtual environment
-└─ ciq                    # Global CLI wrapper
+│  └─ cli/               # Python package
+├─ model/saved_model/    # T5 model
+├─ faiss_index/          # FAISS index
+├─ venv/                 # Python virtual environment
+└─ ciq                   # Global CLI wrapper
 ```
 
 ---
 
 ## 📖 Contributing
 
-Contributions are welcome! Fork the repository, make changes, and submit a pull request.
+Contributions welcome! Fork, modify, and submit pull requests.
 
 ---
 
