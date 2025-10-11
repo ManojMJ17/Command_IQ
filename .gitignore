@@ -1,5 +1,6 @@
 # <!------------------------------------------------- Production Ready --------------------------------->
 dev_requirements.txt
+release
 
 # Python artifacts
 __pycache__/
