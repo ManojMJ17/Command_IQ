@@ -49,6 +49,16 @@ The installer will:
 
 > ⚠️ The installer is **idempotent** — safe to re-run anytime. Existing virtual environments, FAISS indexes, and T5 models will be skipped.
 
+### ❗ Installation Error: `No space left on device`
+
+If you're running CIQ inside VirtualBox or WSL, PyTorch may fail to install due to limited `/tmp` space (even if your disk has free storage).
+
+Fix:
+
+```bash
+mkdir -p ~/ciq_tmp
+TMPDIR=~/ciq_tmp ./install_ciq.sh
+
 4. **Verify installation**:
 
 ```bash
