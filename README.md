@@ -1,104 +1,90 @@
-Here is the **final cleaned README**, formatted exactly so you can **copy-paste directly into your README.md file** with zero modifications.
+🚀 Command IQ (CIQ) — Natural Language → Linux Commands
 
----
+Command IQ is an AI-powered CLI tool that converts plain English instructions into accurate Linux commands.
+It uses a hybrid system:
 
-# ✅ **COPY-PASTE READY README.md**
+FAISS semantic search (offline & instant)
 
-````markdown
-# Command IQ (CIQ) — Natural Language → Linux Commands
+T5-based command generation model (offline)
 
-Command IQ is an AI-powered CLI tool that converts **plain English instructions** into accurate Linux commands.  
-It uses a hybrid offline system powered by:
+CIQ requires zero training, works on any directory, and includes a robust installer that configures everything automatically.
 
-- **FAISS semantic search**
-- **T5 command generation model**
+⚡ Features
 
-CIQ requires **zero training**, works from **any directory**, and includes a powerful installer that configures everything automatically.
+🔍 Convert natural language to real Linux commands
 
----
+⚙️ Offline-capable (FAISS + T5 model shipped as assets)
 
-## ⚡ Features
+📦 One-command setup via install_ciq.sh
 
-- Convert natural language into real Linux commands  
-- Offline-capable with bundled FAISS + T5 model  
-- One-command installation via `install_ciq.sh`  
-- Works on Ubuntu, Kali, Debian, Fedora, WSL2, VirtualBox  
-- Installer is **idempotent** — safe to re-run anytime  
-- Global `ciq` command works from any folder  
+💻 Works on Ubuntu, Kali, Debian, Fedora, WSL2, VirtualBox
 
----
+🔁 Idempotent installer (safe to re-run anytime)
 
-## 🧰 Requirements
+🌍 Global ciq command available from any folder
 
-- **Python 3.11+**
-- `curl`, `unzip`, `git` installed
-- ~3 GB free space for model assets
+🧰 Requirements
 
-Install missing packages on Debian/Ubuntu/Kali:
+Python 3.11 or newer
 
-```bash
+~3 GB disk space for FAISS + T5 assets
+
+curl, unzip, git installed
+
+To install missing tools:
+
 sudo apt install python3.11 python3.11-venv curl unzip git -y
-````
 
----
-
-## 🚀 Installation
-
-### 1. Clone the repository:
-
-```bash
+🚀 Installation
+1. Clone repository (recommended):
 git clone https://github.com/ManojMJ17/Command_IQ.git
 cd Command_IQ
-```
 
-### 2. Make installer executable:
-
-```bash
+2. Make installer executable
 chmod +x install_ciq.sh
-```
 
-### 3. Run installer:
-
-```bash
+3. Run installer (downloads assets automatically)
 ./install_ciq.sh
-```
+
 
 Installer will:
 
-* Create `~/.ciq`
-* Create a Python virtual environment
-* Install dependencies (Torch, Transformers, FAISS)
-* Download + extract FAISS index & T5 model
-* Create the global CLI wrapper `ciq`
+Create ~/.ciq directory
 
----
+Set up a virtual environment
 
-## 🔄 Reinstall / Update
+Install dependencies
 
-### Skip asset downloads (if already extracted):
+Install the correct PyTorch, TorchVision, Torchaudio CPU versions
 
-```bash
+Download + extract FAISS index & T5 model
+
+Create a global CLI wrapper: ciq
+
+🔄 Reinstall / Update
+
+The installer is idempotent — you can safely run it again anytime.
+
+⛔ Skip downloading assets (if already downloaded)
 ./install_ciq.sh --no-download
-```
 
-### Force re-download assets:
 
-```bash
+Assets must already exist in:
+
+~/.ciq/src/faiss_index/
+~/.ciq/src/model/
+
+🔁 Force re-download of assets
 ./install_ciq.sh --force-download
-```
 
----
+❗ Fix for “No space left on device” During PyTorch Install
 
-## ❗ Fix: “No space left on device” on WSL/VM
+In VMs (Oracle/VirtualBox) and WSL2, /tmp may be too small.
 
-If PyTorch fails due to `/tmp` being too small:
+Use a custom temp dir:
 
-```bash
 mkdir -p ~/ciq_tmp
 TMPDIR=~/ciq_tmp ./install_ciq.sh
-```
-
----
 
 ## 🧪 Verify CIQ
 
