@@ -1,154 +1,174 @@
-🚀 Command IQ (CIQ) — Natural Language → Linux Commands
+# Command IQ (CIQ) — Natural Language to Linux Commands
 
-Command IQ is an AI-powered CLI tool that converts plain English instructions into accurate Linux commands.
-It uses a hybrid system:
+Command IQ (CIQ) is an AI-powered tool that converts natural language instructions into accurate Linux commands. It ships with a prebuilt FAISS index and a pretrained T5 model, enabling instant predictions without any manual training.
 
-FAISS semantic search (offline & instant)
+---
 
-T5-based command generation model (offline)
+## ⚡ Features
 
-CIQ requires zero training, works on any directory, and includes a robust installer that configures everything automatically.
+* Convert English instructions into working Linux commands
+* Works fully offline using prebuilt FAISS + T5 model assets
+* Supports major Linux distributions, WSL, and virtual machines
+* CLI works from any directory using the `ciq` global command
+* Automatic setup using a single installer script (`install_ciq.sh`)
+* Idempotent installer — safe to run multiple times
 
-⚡ Features
+---
 
-🔍 Convert natural language to real Linux commands
+## 🚀 Quick Installation
 
-⚙️ Offline-capable (FAISS + T5 model shipped as assets)
+### **1. Clone the repository** (or download directly):
 
-📦 One-command setup via install_ciq.sh
-
-💻 Works on Ubuntu, Kali, Debian, Fedora, WSL2, VirtualBox
-
-🔁 Idempotent installer (safe to re-run anytime)
-
-🌍 Global ciq command available from any folder
-
-🧰 Requirements
-
-Python 3.11 or newer
-
-~3 GB disk space for FAISS + T5 assets
-
-curl, unzip, git installed
-
-To install missing tools:
-
-sudo apt install python3.11 python3.11-venv curl unzip git -y
-
-🚀 Installation
-1. Clone repository (recommended):
+```bash
 git clone https://github.com/ManojMJ17/Command_IQ.git
 cd Command_IQ
+```
 
-2. Make installer executable
+### **2. Install Python 3.11+** (required for compatibility):
+
+```bash
+sudo apt update
+sudo apt install python3.11 python3.11-venv python3.11-distutils python3.11-dev -y
+```
+
+> Ensure Python 3.11 **or higher** is installed. The installer will automatically use Python 3.11 for creating the virtual environment.
+
+### **3. Run the installer script:**
+
+```bash
 chmod +x install_ciq.sh
-
-3. Run installer (downloads assets automatically)
 ./install_ciq.sh
+```
 
+The installer will:
 
-Installer will:
+* Create a Python 3.11 virtual environment
+* Install required Python dependencies
+* Download & extract FAISS index and T5 model
+* Create the global `ciq` command
 
-Create ~/.ciq directory
+### **If you already downloaded assets:**
 
-Set up a virtual environment
-
-Install dependencies
-
-Install the correct PyTorch, TorchVision, Torchaudio CPU versions
-
-Download + extract FAISS index & T5 model
-
-Create a global CLI wrapper: ciq
-
-🔄 Reinstall / Update
-
-The installer is idempotent — you can safely run it again anytime.
-
-⛔ Skip downloading assets (if already downloaded)
+```bash
 ./install_ciq.sh --no-download
+```
 
+### **Force re-download assets:**
 
-Assets must already exist in:
-
-~/.ciq/src/faiss_index/
-~/.ciq/src/model/
-
-🔁 Force re-download of assets
+```bash
 ./install_ciq.sh --force-download
+```
 
-❗ Fix for “No space left on device” During PyTorch Install
+---
 
-In VMs (Oracle/VirtualBox) and WSL2, /tmp may be too small.
+## ❗ Installation Error: `No space left on device`
 
-Use a custom temp dir:
+If you're using **WSL** or **VirtualBox**, PyTorch may fail to install due to limited `/tmp` space.
 
+Fix:
+
+```bash
 mkdir -p ~/ciq_tmp
 TMPDIR=~/ciq_tmp ./install_ciq.sh
+```
 
-## 🧪 Verify CIQ
+---
+
+## ✅ Verify Installation
 
 ```bash
 ciq "check disk usage"
 ```
 
-Example result:
+Example output:
 
 ```
-Final Suggest : df -h
+df -h
 ```
 
 ---
 
-## 🖥️ Usage Examples
+## 🖥️ Usage
 
 ```bash
-ciq "list all files recursively"
+ciq "<natural language query>"
+```
+
+Examples:
+
+```bash
 ciq "install VLC media player"
-ciq "find large files in this folder"
-ciq "show memory usage"
-ciq "how to create a new user"
+ciq "list all files recursively"
+ciq "show current disk usage"
+```
+
+The CLI will show:
+
+* FAISS suggestion
+* T5 model suggestion
+* Final merged Linux command
+
+---
+
+## ⚙️ Notes
+
+* Requires Python **3.11+**
+* Ensure `curl` and `unzip` are installed:
+
+```bash
+sudo apt install curl unzip -y
+```
+
+* Ensure global CLI path is available:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ---
 
-## 📁 Directory Structure After Installation
+## 📂 Directory Structure After Installation
 
 ```
 ~/.ciq/
-├── src/
-│   ├── cli/
-│   │   ├── main.py
-│   │   └── predict.py
-│   ├── faiss_index/
-│   │   ├── faiss_index_combined.index
-│   │   └── faiss_metadata_combined.pkl
-│   └── model/
-│       ├── saved_model/t5_base_resumed.pt
-│       ├── t5_base_arch/
-│       └── t5_base_tokenizer/
-├── venv/
-└── bin/
-    └── ciq  ← Global CLI wrapper
+├─ src/
+│  ├─ cli/
+│  │  ├─ __init__.py
+│  │  ├─ main.py
+│  │  └─ predict.py
+│  ├─ model/
+│  │  ├─ saved_model/t5_base_resumed.pt
+│  │  ├─ t5_base_arch/
+│  │  └─ t5_base_tokenizer/
+│  └─ faiss_index/
+│     ├─ faiss_index_combined.index
+│     └─ faiss_metadata_combined.pkl
+├─ venv/
+└─ bin/
+   └─ ciq  (global CLI wrapper)
 ```
 
 ---
 
-## 🔧 Troubleshooting
+## 🧰 Troubleshooting
 
-### ❌ `T5ForConditionalGeneration` or TorchVision import error
+### **Python not found**
 
-Run:
+Install Python 3.11:
+
+```bash
+sudo apt install python3.11 -y
+```
+
+### **Dependencies failed**
+
+Re-run the installer:
 
 ```bash
 ./install_ciq.sh
 ```
 
-Installer auto-fixes incompatible Torch/TorchVision versions.
-
----
-
-### ❌ `ciq: command not found`
+### **Global CLI not recognized**
 
 Add to PATH:
 
@@ -158,35 +178,15 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ---
 
-### ❌ Assets missing (FAISS or T5)
-
-```bash
-./install_ciq.sh --force-download
-```
-
----
-
 ## 📜 License
 
-MIT License — see `LICENSE`
+MIT License — see `LICENSE` file.
 
 ---
 
-## 👤 Author
+## 🧠 Author
 
 **Manoj Kumar**
 GitHub: [https://github.com/ManojMJ17](https://github.com/ManojMJ17)
 
-```
-
 ---
-
-# 🎉 Your README is now fully updated and polished.
-
-If you want:
-
-✅ A GIF demo  
-✅ A logo/banner  
-✅ Shields.io badges  
-Just tell me — I can generate everything.
-```
