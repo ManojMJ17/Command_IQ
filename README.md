@@ -1,116 +1,170 @@
-# Command IQ (CIQ) — Natural Language to Linux Commands
+Here is the **final cleaned README**, formatted exactly so you can **copy-paste directly into your README.md file** with zero modifications.
 
-Command IQ (CIQ) is an AI-powered tool that converts natural language instructions into accurate Linux commands. It comes with a prebuilt FAISS index and a T5 model for instant command prediction, so you don’t have to train anything manually.
+---
+
+# ✅ **COPY-PASTE READY README.md**
+
+````markdown
+# Command IQ (CIQ) — Natural Language → Linux Commands
+
+Command IQ is an AI-powered CLI tool that converts **plain English instructions** into accurate Linux commands.  
+It uses a hybrid offline system powered by:
+
+- **FAISS semantic search**
+- **T5 command generation model**
+
+CIQ requires **zero training**, works from **any directory**, and includes a powerful installer that configures everything automatically.
 
 ---
 
 ## ⚡ Features
 
-- Convert English instructions into working Linux commands
-- Works offline with prebuilt FAISS and T5 model assets
-- Supports major Linux distributions and WSL
-- Cross-directory CLI: run `ciq "<your query>"` from anywhere
-- Automatic environment setup via a single installer script
+- Convert natural language into real Linux commands  
+- Offline-capable with bundled FAISS + T5 model  
+- One-command installation via `install_ciq.sh`  
+- Works on Ubuntu, Kali, Debian, Fedora, WSL2, VirtualBox  
+- Installer is **idempotent** — safe to re-run anytime  
+- Global `ciq` command works from any folder  
 
 ---
 
-## 🚀 Quick Installation
+## 🧰 Requirements
 
-1. **Clone the repository** (optional if you’re downloading directly from GitHub):
+- **Python 3.11+**
+- `curl`, `unzip`, `git` installed
+- ~3 GB free space for model assets
+
+Install missing packages on Debian/Ubuntu/Kali:
+
+```bash
+sudo apt install python3.11 python3.11-venv curl unzip git -y
+````
+
+---
+
+## 🚀 Installation
+
+### 1. Clone the repository:
 
 ```bash
 git clone https://github.com/ManojMJ17/Command_IQ.git
 cd Command_IQ
 ```
 
-2. **Install Python 3.11** (if not already installed):
-
-```bash
-sudo apt update
-sudo apt install python3.11 python3.11-venv python3.11-distutils python3.11-dev -y
-```
-
-> Make sure Python 3.11 **or higher** is installed. The installer will use Python 3.11 in a virtual environment to ensure compatibility with all dependencies.
-
-3. **Run the installer script**:
+### 2. Make installer executable:
 
 ```bash
 chmod +x install_ciq.sh
+```
+
+### 3. Run installer:
+
+```bash
 ./install_ciq.sh
 ```
 
-The installer will:
+Installer will:
 
-- Create a virtual environment using Python 3.11
-- Install all required Python dependencies (excluding PyTorch, which is installed separately)
-- Download and extract FAISS index and T5 model
-- Fix filenames and directory structure
-- Create a global `ciq` command accessible from any directory
+* Create `~/.ciq`
+* Create a Python virtual environment
+* Install dependencies (Torch, Transformers, FAISS)
+* Download + extract FAISS index & T5 model
+* Create the global CLI wrapper `ciq`
 
-### If you already downlaoded assest you can run with
+---
+
+## 🔄 Reinstall / Update
+
+### Skip asset downloads (if already extracted):
+
 ```bash
 ./install_ciq.sh --no-download
 ```
 
-> ⚠️ The installer is **idempotent** — safe to re-run anytime. Existing virtual environments, FAISS indexes, and T5 models will be skipped.
+### Force re-download assets:
 
-### ❗ Installation Error: `No space left on device`
+```bash
+./install_ciq.sh --force-download
+```
 
-If you're running CIQ inside VirtualBox or WSL, PyTorch may fail to install due to limited `/tmp` space (even if your disk has free storage).
+---
 
-Fix:
+## ❗ Fix: “No space left on device” on WSL/VM
+
+If PyTorch fails due to `/tmp` being too small:
 
 ```bash
 mkdir -p ~/ciq_tmp
 TMPDIR=~/ciq_tmp ./install_ciq.sh
 ```
 
-4. **Verify installation**:
+---
+
+## 🧪 Verify CIQ
 
 ```bash
 ciq "check disk usage"
 ```
 
-Example output:
+Example result:
 
-```text
-Disk usage for /home/user:
-df -h
+```
+Final Suggest : df -h
 ```
 
 ---
 
-## 🖥️ Usage
+## 🖥️ Usage Examples
 
 ```bash
-ciq "<natural language query>"
-```
-
-**Examples:**
-
-```bash
-ciq "install VLC media player"
 ciq "list all files recursively"
-ciq "show current disk usage"
+ciq "install VLC media player"
+ciq "find large files in this folder"
+ciq "show memory usage"
+ciq "how to create a new user"
 ```
-
-The CLI will display:
-
-- The interpreted Linux command
-- Optionally execute it if enabled in future updates
 
 ---
 
-## ⚙️ Notes
+## 📁 Directory Structure After Installation
 
-- Ensure Python 3.11 or higher is installed. Older versions may cause dependency issues (especially with PyTorch and TorchVision).
-- On Linux/WSL, ensure `curl` and `unzip` are installed:
-
-```bash
-sudo apt install curl unzip -y
+```
+~/.ciq/
+├── src/
+│   ├── cli/
+│   │   ├── main.py
+│   │   └── predict.py
+│   ├── faiss_index/
+│   │   ├── faiss_index_combined.index
+│   │   └── faiss_metadata_combined.pkl
+│   └── model/
+│       ├── saved_model/t5_base_resumed.pt
+│       ├── t5_base_arch/
+│       └── t5_base_tokenizer/
+├── venv/
+└── bin/
+    └── ciq  ← Global CLI wrapper
 ```
 
-- If the CLI is not recognized, ensure `~/.local/bin` is in your PATH:
+---
+
+## 🔧 Troubleshooting
+
+### ❌ `T5ForConditionalGeneration` or TorchVision import error
+
+Run:
+
+```bash
+./install_ciq.sh
+```
+
+Installer auto-fixes incompatible Torch/TorchVision versions.
+
+---
+
+### ❌ `ciq: command not found`
+
+Add to PATH:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
@@ -118,45 +172,35 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ---
 
-## 📂 Directory Structure after Installation
+### ❌ Assets missing (FAISS or T5)
 
+```bash
+./install_ciq.sh --force-download
 ```
-~/.ciq/
-├─ src/
-│  ├─ cli/
-│  │  ├─ __init__.py
-│  │  ├─ main.py
-│  │  └─ predict.py
-│  ├─ model/
-│  │  ├─ saved_model/t5_base_resumed.pt
-│  │  ├─ t5_base_arch/
-│  │  └─ t5_base_tokenizer/
-│  └─ faiss_index/
-│     └─ faiss_index_combined.index
-├─ venv/
-└─ bin/
-   └─ ciq  (global CLI wrapper)
-```
-
----
-
-## 💡 Troubleshooting
-
-- **Python not found:** Make sure Python 3.11+ is installed and accessible
-- **Dependency errors:** Re-run the installer; it upgrades pip and installs all requirements
-- **CLI not working:** Ensure `~/.local/bin` is in your PATH
 
 ---
 
 ## 📜 License
 
-MIT License — see `LICENSE` file
+MIT License — see `LICENSE`
 
 ---
 
-## 🧠 Author
+## 👤 Author
 
-Manoj Kumar
+**Manoj Kumar**
 GitHub: [https://github.com/ManojMJ17](https://github.com/ManojMJ17)
 
+```
+
 ---
+
+# 🎉 Your README is now fully updated and polished.
+
+If you want:
+
+✅ A GIF demo  
+✅ A logo/banner  
+✅ Shields.io badges  
+Just tell me — I can generate everything.
+```
