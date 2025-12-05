@@ -47,6 +47,11 @@ The installer will:
 - Fix filenames and directory structure
 - Create a global `ciq` command accessible from any directory
 
+### If you already downlaoded assest you can run with
+```bash
+./install_ciq.sh --no-download
+```
+
 > ⚠️ The installer is **idempotent** — safe to re-run anytime. Existing virtual environments, FAISS indexes, and T5 models will be skipped.
 
 ### ❗ Installation Error: `No space left on device`
