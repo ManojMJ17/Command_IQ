@@ -58,6 +58,7 @@ Fix:
 ```bash
 mkdir -p ~/ciq_tmp
 TMPDIR=~/ciq_tmp ./install_ciq.sh
+```
 
 4. **Verify installation**:
 
