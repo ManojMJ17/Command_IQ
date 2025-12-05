@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # ============================================
-# CIQ Installer Script (final, safe)
-# - avoids torch/torchvision ABI conflicts
-# - preserves existing faiss_index/model dirs unless --force-download
-# - supports --no-download and --force-download
+# CIQ Installer — final patched version
+# - Auto-repairs torch/torchvision/torchaudio ABI mismatches (GPU & CPU)
+# - Preserves existing assets unless --force-download
+# - Flags: --no-download, --force-download
 # ============================================
 
 REPO_URL="https://github.com/ManojMJ17/Command_IQ.git"
@@ -20,9 +20,11 @@ BIN_PATH="$HOME/.local/bin"
 WRAPPER="$BIN_PATH/ciq"
 LOCAL_REPO="$HOME/Command_IQ"
 
+# Flags
 NO_DOWNLOAD=0
 FORCE_DOWNLOAD=0
 
+# Parse flags
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-download) NO_DOWNLOAD=1; shift ;;
@@ -30,6 +32,7 @@ while [ $# -gt 0 ]; do
     -h|--help)
       cat <<'USAGE'
 Usage: install_ciq.sh [--no-download] [--force-download]
+
 --no-download     Skip downloading FAISS/T5 assets (use existing assets if present)
 --force-download  Force redownload of FAISS/T5 assets (overwrites existing)
 USAGE
@@ -44,7 +47,7 @@ echo " Installing Command_IQ (CIQ) — installer"
 echo "=========================================="
 echo
 
-# detect package manager
+# Detect package manager
 PKG_MANAGER=""
 if command -v apt >/dev/null 2>&1; then PKG_MANAGER="apt"; fi
 if command -v dnf >/dev/null 2>&1; then PKG_MANAGER="dnf"; fi
@@ -59,13 +62,14 @@ install_system_packages() {
     echo "Installing system packages via $PKG_MANAGER (requires sudo)..."
     sudo $PKG_MANAGER install -y python3 python3-venv python3-pip curl unzip git rsync gcc gcc-c++ openblas-devel lapack-devel
   else
-    echo "⚠ Unsupported package manager; please install python3, python3-venv, pip, curl, unzip, git and rsync manually."
+    echo "⚠ Unsupported package manager; ensure python3, python3-venv, pip, curl, unzip, git and rsync are installed."
   fi
 }
 
+# Ensure important dirs
 mkdir -p "$CIQ_HOME" "$PROJECT_SRC" "$BIN_PATH"
 
-# ensure required commands exist (best-effort)
+# Ensure essential commands (best-effort)
 for cmd in git curl unzip rsync python3 pip3; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "⚠ '$cmd' not found — attempting to install system packages (requires sudo)..."
@@ -74,7 +78,7 @@ for cmd in git curl unzip rsync python3 pip3; do
   fi
 done
 
-# get repo (prefer local copy)
+# Get repo (prefer local)
 if [ -d "$LOCAL_REPO" ]; then
   echo "Using local repository at $LOCAL_REPO"
   SRC_REPO="$LOCAL_REPO"
@@ -89,151 +93,234 @@ else
   fi
 fi
 
-# copy src/ contents into PROJECT_SRC (non-destructive)
-echo "Copying repo 'src/' contents -> $PROJECT_SRC (non-destructive)"
+# Copy repo/src contents -> PROJECT_SRC (preserve existing asset dirs)
+echo "Copying repo 'src/' contents -> $PROJECT_SRC (preserve existing assets)"
 if command -v rsync >/dev/null 2>&1; then
   rsync -a "$SRC_REPO/src/" "$PROJECT_SRC/"
 else
   cp -r "$SRC_REPO/src/"* "$PROJECT_SRC/" || true
 fi
 
-# create virtualenv if absent
+# Create virtualenv if missing
 if [ ! -d "$VENV_PATH" ]; then
-  echo "Creating virtualenv at $VENV_PATH..."
+  echo "Creating Python virtual environment at $VENV_PATH..."
   python3 -m venv "$VENV_PATH"
 else
-  echo "Using existing virtualenv at $VENV_PATH"
+  echo "Virtualenv exists at $VENV_PATH — reusing."
 fi
 
-# cleanup on exit
+# Ensure deactivation on exit
 trap 'deactivate 2>/dev/null || true' EXIT
 
-# activate venv
+# Activate venv
 # shellcheck disable=SC1090
 source "$VENV_PATH/bin/activate"
 PIP_BIN="$VENV_PATH/bin/pip"
 PY_BIN="$VENV_PATH/bin/python"
 
-# upgrade pip/wheel
+# Upgrade pip/wheel
 "$PIP_BIN" install --upgrade pip setuptools wheel
 
-# install repo requirements except torch/torchvision/torchaudio
+# Install requirements excluding direct torch lines
 REQ_SRC="$SRC_REPO/requirements.txt"
 if [ -f "$REQ_SRC" ]; then
-  echo "Installing requirements (omitting torch/torchvision/torchaudio)..."
+  echo "Installing requirements (omitting torch/torchvision/torchaudio) ..."
   grep -vE "^(torch|torchvision|torchaudio)([ =<>=]|$)" "$REQ_SRC" | "$PIP_BIN" install -r /dev/stdin
 else
-  echo "No requirements.txt found in repo; skipping."
+  echo "No requirements.txt found in repo; continuing."
 fi
 
-# helper to query package versions in venv
+# Helper: get package version with venv python
 py_pkg_ver() {
   pkg="$1"
   "$PY_BIN" - <<PY 2>/dev/null
 try:
-  import importlib, sys
+  import importlib
   m = importlib.import_module("${pkg}")
-  v = getattr(m, "__version__", getattr(m, "version", None))
-  if v is None: v = "unknown"
-  print(v)
+  v = getattr(m,'__version__', getattr(m,'version', None))
+  print(v if v is not None else "unknown")
 except Exception:
   print("__MISSING__")
 PY
 }
 
-# check torch / torchvision / torchaudio compatibility
+# Detect current torch & friends
 TORCH_VER="$(py_pkg_ver torch)" || true
 TV_VER="$(py_pkg_ver torchvision)" || true
 TA_VER="$(py_pkg_ver torchaudio)" || true
+echo "Detected in venv: torch=$TORCH_VER torchvision=$TV_VER torchaudio=$TA_VER"
 
-# If torch present but torchvision/torchaudio mismatch, try to reinstall a known-good triple.
-# We use the stable CPU set 2.9.1 from PyTorch CPU index as a sensible default.
-ensure_torch_compat() {
-  # If none are installed -> install
-  if [ "$TORCH_VER" = "__MISSING__" ] && [ "$TV_VER" = "__MISSING__" ]; then
-    if [ "$NO_DOWNLOAD" -eq 1 ]; then
-      echo "Skipping torch install due to --no-download and torch is missing."
-      return
-    fi
-    echo "Installing torch+torchvision+torchaudio (CPU) as they are missing..."
-    "$PIP_BIN" install "torch==2.9.1+cpu" "torchvision==0.24.1+cpu" "torchaudio==2.9.1+cpu" --index-url https://download.pytorch.org/whl/cpu
-    return
+# TMPDIR helper for pip extraction (use existing TMPDIR env if set)
+TMPDIR_FINAL="${TMPDIR:-$HOME/ciq_tmp}"
+mkdir -p "$TMPDIR_FINAL"
+
+# Function: attempt to install matching torchvision/torchaudio for an existing torch build
+repair_matching_triple() {
+  # Assume torch is present
+  TORCH_FULL="$("$PY_BIN" -c 'import torch,sys; print(torch.__version__)' 2>/dev/null || echo "__MISSING__")"
+  if [ "$TORCH_FULL" = "__MISSING__" ]; then
+    return 1
+  fi
+  BASE="${TORCH_FULL%%+*}"
+  SUFFIX="${TORCH_FULL#${BASE}}"
+  echo "Repairing for torch version: $TORCH_FULL (base=$BASE suffix=$SUFFIX)"
+
+  # Derive likely torchvision/torchaudio versions:
+  # For some torch releases, torchvision uses a different numbering (e.g. torch 2.6.0 -> torchvision 0.21.0).
+  # Provide a small known mapping, else attempt same-base fallback.
+  declare -A TV_MAP
+  declare -A TA_MAP
+  # Known mappings (expand if you add more)
+  TV_MAP["2.6.0"]="0.21.0"
+  TA_MAP["2.6.0"]="2.6.0"
+  TV_MAP["2.9.1"]="0.24.1"
+  TA_MAP["2.9.1"]="2.9.1"
+
+  TV_BASE="${TV_MAP[$BASE]:-$BASE}"
+  TA_BASE="${TA_MAP[$BASE]:-$BASE}"
+
+  # If suffix contains 'cu', construct index for CUDA wheels
+  INDEX_ARG=""
+  if echo "$SUFFIX" | grep -q "cu"; then
+    CU_TAG="$(echo "$SUFFIX" | sed -E 's/\+([^+]+).*/\1/')"
+    INDEX_ARG="--index-url https://download.pytorch.org/whl/${CU_TAG}"
+    echo "Using PyTorch wheel index: $INDEX_ARG"
+  else
+    # CPU index is used when suffix is empty or '+cpu'
+    INDEX_ARG="--index-url https://download.pytorch.org/whl/cpu"
   fi
 
-  # If torch present but torchvision/torchaudio missing or mismatch -> repair
-  if [ "$TORCH_VER" != "__MISSING__" ]; then
-    # if torchvision/torchaudio exist, check pair compatibility rough heuristic:
-    if [ "$TV_VER" != "__MISSING__" ] && [ "$TA_VER" != "__MISSING__" ]; then
-      # If torchvision or torchaudio version does not match torch major.minor, repair
-      T_MAJOR_MINOR="$("$PY_BIN" - <<PY
-import importlib
-v = importlib.import_module("torch").__version__
-parts = v.split("+")[0].split(".")[:2]
-print(".".join(parts))
-PY
-)"
-      TV_MM="$(python - <<PY
-import importlib
-v=importlib.import_module("torchvision").__version__
-print(".".join(v.split("+")[0].split(".")[:2]))
-PY
-)" || TV_MM="x"
-      if [ "$T_MAJOR_MINOR" != "$TV_MM" ]; then
-        echo "Detected torch ($TORCH_VER) != torchvision ($TV_VER) ABI mismatch. Repairing to known-good CPU triple..."
-        if [ "$NO_DOWNLOAD" -eq 1 ]; then
-          echo "Cannot repair torch/torchvision mismatch with --no-download set. Please re-run installer without --no-download."
-          exit 1
-        fi
-        "$PIP_BIN" install --force-reinstall "torch==2.9.1+cpu" "torchvision==0.24.1+cpu" "torchaudio==2.9.1+cpu" --index-url https://download.pytorch.org/whl/cpu
-        return
-      fi
-    else
-      # torchvision or torchaudio missing while torch present — install matching pair
-      if [ "$NO_DOWNLOAD" -eq 1 ]; then
-        echo "torch is present but torchvision/torchaudio missing. Re-run without --no-download to install required wheel."
-        exit 1
-      fi
-      echo "Installing missing torchvision/torchaudio to match torch..."
-      "$PIP_BIN" install --force-reinstall "torchvision==0.24.1+cpu" "torchaudio==2.9.1+cpu" --index-url https://download.pytorch.org/whl/cpu
-      return
-    fi
+  # Try likely torchvision / torchaudio versions (try TV_BASE + SUFFIX first)
+  set -x
+  if TMPDIR="$TMPDIR_FINAL" "$PIP_BIN" install --force-reinstall --no-cache-dir \
+       "torchvision==${TV_BASE}${SUFFIX}" "torchaudio==${TA_BASE}${SUFFIX}" ${INDEX_ARG:-} ; then
+    set +x
+    echo "Successfully installed matching torchvision/torchaudio: ${TV_BASE}${SUFFIX}, ${TA_BASE}${SUFFIX}"
+    return 0
   fi
+  set +x
+
+  # If first attempt failed, try a small alternate: if TV_BASE differs from BASE,
+  # also try TV_BASE with suffix again (sometimes only this one exists).
+  # (This handles cases like torch 2.6.0 -> torchvision 0.21.0)
+  if [ "$TV_BASE" != "$BASE" ]; then
+    set -x
+    if TMPDIR="$TMPDIR_FINAL" "$PIP_BIN" install --force-reinstall --no-cache-dir \
+         "torchvision==${TV_BASE}${SUFFIX}" ${INDEX_ARG:-} ; then
+      set +x
+      echo "Installed torchvision ${TV_BASE}${SUFFIX}; attempting torchaudio..."
+      if TMPDIR="$TMPDIR_FINAL" "$PIP_BIN" install --force-reinstall --no-cache-dir \
+           "torchaudio==${TA_BASE}${SUFFIX}" ${INDEX_ARG:-} ; then
+        echo "Installed torchaudio ${TA_BASE}${SUFFIX}"
+        return 0
+      fi
+    fi
+    set +x
+  fi
+
+  # If still failing, try PyPI fallback (plain pip) for general compatibility
+  echo "Attempt to fall back to PyPI wheel installs (may or may not include CUDA wheels)..."
+  set -x
+  if TMPDIR="$TMPDIR_FINAL" "$PIP_BIN" install --force-reinstall --no-cache-dir torchvision torchaudio; then
+    set +x
+    echo "Installed torchvision/torchaudio from PyPI."
+    return 0
+  fi
+  set +x
+
+  # Nothing worked
+  return 2
 }
 
-ensure_torch_compat
+# Function: install CPU-tested triple
+install_cpu_triple() {
+  echo "Installing tested CPU triple (recommended fallback)..."
+  set -x
+  TMPDIR="$TMPDIR_FINAL" "$PIP_BIN" install --force-reinstall --no-cache-dir \
+    "torch==2.9.1+cpu" "torchvision==0.24.1+cpu" "torchaudio==2.9.1+cpu" \
+    --index-url https://download.pytorch.org/whl/cpu
+  set +x
+}
 
-# install sentence-transformers/faiss only if needed
+# If torch exists but its friends are missing or broken, try to repair
+if [ "$TORCH_VER" != "__MISSING__" ]; then
+  need_repair=0
+  if [ "$TV_VER" = "__MISSING__" ] || [ "$TA_VER" = "__MISSING__" ]; then
+    need_repair=1
+  else
+    # quick ABI heuristic: compare major.minor
+    T_MM="$("$PY_BIN" -c 'import importlib,sys; v=importlib.import_module("torch").__version__.split("+")[0]; print(".".join(v.split(".")[:2]))' 2>/dev/null || echo "x")"
+    TV_MM="$("$PY_BIN" -c 'import importlib,sys; v=importlib.import_module("torchvision").__version__.split("+")[0]; print(".".join(v.split(".")[:2]))' 2>/dev/null || echo "y")"
+    if [ "$T_MM" != "$TV_MM" ]; then
+      need_repair=1
+    fi
+  fi
+
+  if [ "$need_repair" -eq 1 ]; then
+    echo "Detected missing or mismatched torchvision/torchaudio. Attempting auto-repair..."
+    if [ "$NO_DOWNLOAD" -eq 1 ]; then
+      echo "ERROR: auto-repair requires downloads but --no-download was provided. Re-run without --no-download."
+      exit 1
+    fi
+
+    # Try GPU-matching repair or PyPI fallback
+    if repair_matching_triple; then
+      echo "Repair succeeded."
+    else
+      echo "Auto-repair via matching wheels failed. Trying CPU fallback triple..."
+      install_cpu_triple
+    fi
+  else
+    echo "torch + torchvision + torchaudio appear compatible — skipping repair."
+  fi
+else
+  # torch missing entirely -> install triple (prefer CPU triple by default)
+  if [ "$NO_DOWNLOAD" -eq 1 ]; then
+    echo "ERROR: torch missing and --no-download specified. Re-run installer without --no-download."
+    exit 1
+  fi
+  echo "torch not installed in venv. Installing tested CPU triple by default..."
+  install_cpu_triple
+fi
+
+# After install/repair, re-evaluate versions
+TORCH_VER="$(py_pkg_ver torch)" || true
+TV_VER="$(py_pkg_ver torchvision)" || true
+TA_VER="$(py_pkg_ver torchaudio)" || true
+echo "Post-install: torch=$TORCH_VER torchvision=$TV_VER torchaudio=$TA_VER"
+
+# Install faiss-cpu and sentence-transformers if required
 if [ "$NO_DOWNLOAD" -eq 1 ] && [ "$FORCE_DOWNLOAD" -eq 0 ]; then
   echo "Skipping faiss-cpu and sentence-transformers install due to --no-download"
 else
   if [ "$(py_pkg_ver faiss)" = "__MISSING__" ] || [ "$(py_pkg_ver sentence_transformers)" = "__MISSING__" ]; then
     if [ "$NO_DOWNLOAD" -eq 1 ]; then
-      echo "faiss or sentence-transformers missing but --no-download set. Please re-run without --no-download."
+      echo "ERROR: faiss or sentence-transformers missing and --no-download set. Re-run without --no-download."
       exit 1
     fi
     echo "Installing faiss-cpu and sentence-transformers..."
-    "$PIP_BIN" install faiss-cpu sentence-transformers || {
-      echo "faiss-cpu/sentence-transformers install failed. Ensure build deps present and retry."
+    TMPDIR="$TMPDIR_FINAL" "$PIP_BIN" install --no-cache-dir faiss-cpu sentence-transformers || {
+      echo "Warning: faiss-cpu/sentence-transformers install failed. Ensure build deps are present and retry."
     }
   else
-    echo "faiss and sentence-transformers already importable — skipping install."
+    echo "faiss and sentence-transformers already importable — skipping."
   fi
 fi
 
-# ensure transformers is installed (after torch)
+# Ensure transformers installed
 if [ "$(py_pkg_ver transformers)" = "__MISSING__" ]; then
   if [ "$NO_DOWNLOAD" -eq 1 ]; then
-    echo "transformers missing but --no-download set. Please re-run without --no-download."
+    echo "ERROR: transformers missing and --no-download set. Re-run without --no-download."
     exit 1
   fi
-  echo "Installing transformers..."
-  "$PIP_BIN" install transformers
+  TMPDIR="$TMPDIR_FINAL" "$PIP_BIN" install --no-cache-dir transformers
 else
-  echo "transformers already installed — ensuring latest compatible"
-  # safe reinstall could be expensive; skip unless user wants it
+  echo "transformers present — OK"
 fi
 
-# FAISS/T5 asset checks
+# -------------------------
+# Asset checks: FAISS & T5
+# -------------------------
 FAISS_IDX="$PROJECT_SRC/faiss_index/faiss_index_combined.index"
 FAISS_META="$PROJECT_SRC/faiss_index/faiss_metadata_combined.pkl"
 T5_MODEL_FILE="$PROJECT_SRC/model/saved_model/t5_base_resumed.pt"
@@ -275,38 +362,36 @@ else
   fi
 fi
 
-# write wrapper (safe PYTHONPATH)
+# -------------------------
+# Create CLI wrapper
+# -------------------------
 echo "Creating/overwriting wrapper at $WRAPPER"
 mkdir -p "$(dirname "$WRAPPER")"
 cat > "$WRAPPER" <<'EOH'
 #!/usr/bin/env bash
 set -euo pipefail
-
 CIQ_HOME="$HOME/.ciq"
 VENV="$CIQ_HOME/venv"
 PROJECT_SRC="$CIQ_HOME/src"
-
 if [ ! -f "$VENV/bin/activate" ]; then
   echo "❌ Virtualenv not found at $VENV. Please re-run installer."
   exit 1
 fi
-
 # Activate venv
 # shellcheck disable=SC1090
 source "$VENV/bin/activate"
-
-# make PYTHONPATH safe even if undefined
+# Make PYTHONPATH safe even if undefined
 export PYTHONPATH="$PROJECT_SRC${PYTHONPATH:+:}${PYTHONPATH:-}"
-
+# Run the CLI as a module (keeps user cwd)
 python -m cli.main "$@"
-
 deactivate
 EOH
 chmod +x "$WRAPPER"
 
+# Final guidance
 echo
 echo "=========================================="
-echo "✅ CIQ installation complete."
+echo "✅ CIQ installation completed."
 echo " - CLI wrapper: $WRAPPER"
 echo " - Project src: $PROJECT_SRC"
 echo " - Virtualenv: $VENV_PATH"
@@ -317,158 +402,5 @@ echo "To skip downloads (assets must already exist): ./install_ciq.sh --no-downl
 echo "=========================================="
 echo
 
-# done (trap will deactivate)
-
-
-
-
-# #!/bin/bash
-
-# # ============================================
-# # CIQ Installer Script (Linux / WSL)
-# # ============================================
-
-# set -e
-
-# REPO_URL="https://github.com/ManojMJ17/Command_IQ.git"
-# FAISS_ZIP_URL="https://github.com/ManojMJ17/Command_IQ/releases/download/v1.0/ciq_assets_faiss.zip"
-# T5_ZIP_URL="https://github.com/ManojMJ17/Command_IQ/releases/download/v1.0/ciq_assets_t5.zip"
-
-# CIQ_HOME="$HOME/.ciq"
-# VENV_PATH="$CIQ_HOME/venv"
-# PROJECT_SRC="$CIQ_HOME/src"
-# BIN_PATH="$HOME/.local/bin"
-# WRAPPER="$BIN_PATH/ciq"
-
-# echo "===== CIQ Installer ====="
-
-# # -------------------------------
-# # 1️⃣ Detect package manager & install system dependencies
-# # -------------------------------
-# install_pkg() {
-#     PKG_NAME=$1
-#     if command -v apt &> /dev/null; then
-#         sudo apt update
-#         sudo apt install -y "$PKG_NAME"
-#     elif command -v dnf &> /dev/null; then
-#         sudo dnf install -y "$PKG_NAME"
-#     else
-#         echo "⚠️ Unsupported package manager. Please install $PKG_NAME manually."
-#     fi
-# }
-
-# for pkg in python3-venv python3-pip curl unzip git; do
-#     if ! dpkg -s $pkg &> /dev/null 2>&1 && ! rpm -q $pkg &> /dev/null 2>&1; then
-#         echo "Installing missing system package: $pkg"
-#         install_pkg $pkg
-#     fi
-# done
-
-# # -------------------------------
-# # 2️⃣ Create directories if missing
-# # -------------------------------
-# mkdir -p "$CIQ_HOME"
-# mkdir -p "$PROJECT_SRC"
-# mkdir -p "$BIN_PATH"
-
-# # -------------------------------
-# # 3️⃣ Create virtual environment if missing
-# # -------------------------------
-# if [ ! -d "$VENV_PATH" ]; then
-#     echo "Creating virtual environment..."
-#     python3 -m venv "$VENV_PATH"
-# else
-#     echo "Virtual environment already exists, skipping..."
-# fi
-
-# # -------------------------------
-# # 4️⃣ Activate venv and install dependencies
-# # -------------------------------
-# source "$VENV_PATH/bin/activate"
-
-# REQ_FILE="$PROJECT_SRC/requirements.txt"
-# if [ ! -f "$REQ_FILE" ]; then
-#     if [ ! -d "$PROJECT_SRC/.git" ]; then
-#         echo "Cloning repo..."
-#         git clone "$REPO_URL" "$PROJECT_SRC"
-#     else
-#         echo "Repo already exists at $PROJECT_SRC"
-#     fi
-# fi
-
-# REQ_FILE="$PROJECT_SRC/requirements.txt"
-# if [ -f "$REQ_FILE" ]; then
-#     echo "Installing Python dependencies from requirements.txt (excluding torch packages)..."
-#     pip install --upgrade pip
-#     grep -vE "torch|torchvision|torchaudio" "$REQ_FILE" | pip install -r /dev/stdin
-# else
-#     echo "❌ requirements.txt still not found. Exiting."
-#     exit 1
-# fi
-
-# # -------------------------------
-# # 5️⃣ Install PyTorch stack automatically
-# # -------------------------------
-# echo "Installing PyTorch stack..."
-# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-# # -------------------------------
-# # 6️⃣ Download FAISS index if missing
-# # -------------------------------
-# FAISS_DIR="$PROJECT_SRC/faiss_index"
-# if [ ! -d "$FAISS_DIR" ]; then
-#     echo "Downloading FAISS index..."
-#     curl -L -o "$PROJECT_SRC/ciq_assets_faiss.zip" "$FAISS_ZIP_URL"
-#     echo "Extracting FAISS index..."
-#     unzip -o "$PROJECT_SRC/ciq_assets_faiss.zip" -d "$PROJECT_SRC"
-#     rm "$PROJECT_SRC/ciq_assets_faiss.zip"
-# else
-#     echo "FAISS index already exists, skipping..."
-# fi
-
-# # -------------------------------
-# # 7️⃣ Download T5 model if missing or incomplete
-# # -------------------------------
-# T5_MODEL_FILE="$PROJECT_SRC/model/saved_model/t5_base_resumed.pt"
-# if [ ! -f "$T5_MODEL_FILE" ]; then
-#     echo "Downloading T5 model..."
-#     curl -L -o "$PROJECT_SRC/ciq_assets_t5.zip" "$T5_ZIP_URL"
-#     echo "Extracting T5 model..."
-#     unzip -o "$PROJECT_SRC/ciq_assets_t5.zip" -d "$PROJECT_SRC"
-#     rm "$PROJECT_SRC/ciq_assets_t5.zip"
-# else
-#     echo "T5 model already exists, skipping..."
-# fi
-
-# # -------------------------------
-# # 8️⃣ Create global CLI wrapper if missing
-# # -------------------------------
-# if [ ! -f "$WRAPPER" ]; then
-#     echo "Creating global CLI wrapper at $WRAPPER..."
-#     cat > "$WRAPPER" <<EOL
-# #!/bin/bash
-# # Activate virtual environment
-# source "$VENV_PATH/bin/activate"
-
-# # Set PYTHONPATH so Python can find 'cli' module
-# export PYTHONPATH="$PROJECT_SRC/src:\$PYTHONPATH"
-
-# # Run CLI using venv python
-# "$VENV_PATH/bin/python" "$PROJECT_SRC/src/cli/main.py" "\$@"
-
-# # Deactivate virtual environment
-# deactivate
-# EOL
-#     chmod +x "$WRAPPER"
-# else
-#     echo "CLI wrapper already exists, skipping..."
-# fi
-
-# # -------------------------------
-# # 9️⃣ Confirm installation
-# # -------------------------------
-# echo "✅ CIQ installation complete!"
-# echo "Activate with: source $VENV_PATH/bin/activate"
-# echo "Run anywhere with: ciq \"your natural language query\""
-
-# deactivate
+# Done — deactivate venv
+deactivate 2>/dev/null || true
